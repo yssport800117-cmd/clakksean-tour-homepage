@@ -12,20 +12,25 @@ const APIManagerModal: React.FC<APIManagerModalProps> = ({ onClose }) => {
   const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
   const [testMessage, setTestMessage] = useState<string>('');
   const [latency, setLatency] = useState<number | null>(null);
+  const [isApplying, setIsApplying] = useState<boolean>(false);
 
   const checkKeyStatus = useCallback(async () => {
-    if (window.aistudio && typeof window.aistudio.hasSelectedApiKey === 'function') {
-      const selected = await window.aistudio.hasSelectedApiKey();
-      setHasKey(selected);
-    } else {
-      setHasKey(!!process.env.API_KEY);
+    try {
+      if (window.aistudio && typeof window.aistudio.hasSelectedApiKey === 'function') {
+        const selected = await window.aistudio.hasSelectedApiKey();
+        setHasKey(selected);
+      } else {
+        setHasKey(!!process.env.API_KEY);
+      }
+    } catch (err) {
+      console.error('Key status check failed:', err);
+      setHasKey(false);
     }
   }, []);
 
   useEffect(() => {
     checkKeyStatus();
     
-    // ESC key to close
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
@@ -34,12 +39,17 @@ const APIManagerModal: React.FC<APIManagerModalProps> = ({ onClose }) => {
   }, [onClose, checkKeyStatus]);
 
   const handleOpenSelectKey = async () => {
-    if (window.aistudio && typeof window.aistudio.openSelectKey === 'function') {
-      await window.aistudio.openSelectKey();
-      setHasKey(true);
-      setTestStatus('idle');
-    } else {
-      alert('이 환경에서는 외부 키 선택기를 지원하지 않습니다.');
+    try {
+      if (window.aistudio && typeof window.aistudio.openSelectKey === 'function') {
+        await window.aistudio.openSelectKey();
+        await checkKeyStatus();
+        setTestStatus('idle');
+        setTestMessage('');
+      } else {
+        alert('이 환경에서는 외부 키 선택기를 지원하지 않습니다.');
+      }
+    } catch (err) {
+      alert('키 선택 중 오류가 발생했습니다.');
     }
   };
 
@@ -48,7 +58,6 @@ const APIManagerModal: React.FC<APIManagerModalProps> = ({ onClose }) => {
       setHasKey(false);
       setTestStatus('idle');
       setTestMessage('');
-      // In aistudio environment, this usually resets the internal link
       alert('설정이 초기화되었습니다. 다시 사용하려면 키를 선택해주세요.');
     }
   };
@@ -59,7 +68,7 @@ const APIManagerModal: React.FC<APIManagerModalProps> = ({ onClose }) => {
     const startTime = performance.now();
 
     try {
-      // Create a fresh instance to ensure the latest key is used
+      // 런타임에서 최신 process.env.API_KEY를 사용하여 인스턴스 생성
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
@@ -81,6 +90,34 @@ const APIManagerModal: React.FC<APIManagerModalProps> = ({ onClose }) => {
       if (error.message?.includes('Requested entity was not found')) {
         setHasKey(false);
       }
+    }
+  };
+
+  const handleApply = async (e: React.MouseEvent) => {
+    e.preventDefault(); // Submit 방지
+    setIsApplying(true);
+    
+    try {
+      // 1. 키 상태 재확인
+      await checkKeyStatus();
+      
+      if (!hasKey) {
+        throw new Error('설정된 API 키가 없습니다. 먼저 키를 선택해주세요.');
+      }
+
+      // 2. 엔진 동기화 (GoogleGenAI는 요청 시 생성되므로 상태 메시지만 업데이트)
+      setTestStatus('success');
+      setTestMessage('API 키가 정상적으로 적용되었습니다.');
+      
+      // 3. 모달 닫기 지연 (사용자 피드백 확인용)
+      setTimeout(() => {
+        onClose();
+      }, 1000);
+      
+    } catch (error: any) {
+      setTestStatus('error');
+      setTestMessage(error.message || '적용 중 오류가 발생했습니다. 키 재등록이 필요할 수 있습니다.');
+      setIsApplying(false);
     }
   };
 
@@ -107,6 +144,7 @@ const APIManagerModal: React.FC<APIManagerModalProps> = ({ onClose }) => {
             보안 연결: 모든 키는 브라우저에 암호화 저장됩니다.
           </p>
           <button 
+            type="button"
             onClick={onClose}
             className="absolute top-7 right-7 text-white/60 hover:text-white transition-colors"
           >
@@ -118,7 +156,6 @@ const APIManagerModal: React.FC<APIManagerModalProps> = ({ onClose }) => {
 
         {/* Modal Body */}
         <div className="p-8 space-y-8">
-          {/* Provider Info */}
           <div className="flex items-center justify-between">
             <span className="text-sm font-bold text-gray-400 uppercase tracking-widest">Service Provider</span>
             <span className="bg-blue-50 text-primary text-xs font-black px-3 py-1 rounded-full border border-blue-100">
@@ -126,7 +163,6 @@ const APIManagerModal: React.FC<APIManagerModalProps> = ({ onClose }) => {
             </span>
           </div>
 
-          {/* Key Management Card */}
           <div className={`p-6 rounded-2xl border transition-all duration-300 ${
             hasKey ? 'bg-green-50/50 border-green-100' : 'bg-orange-50/50 border-orange-100'
           }`}>
@@ -148,6 +184,7 @@ const APIManagerModal: React.FC<APIManagerModalProps> = ({ onClose }) => {
             
             <div className="mt-6 flex gap-2">
               <Button 
+                type="button"
                 variant={hasKey ? 'outline' : 'primary'} 
                 size="sm" 
                 fullWidth 
@@ -158,6 +195,7 @@ const APIManagerModal: React.FC<APIManagerModalProps> = ({ onClose }) => {
               </Button>
               {hasKey && (
                 <button 
+                  type="button"
                   onClick={handleResetKey}
                   className="p-3 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
                   title="설정 초기화"
@@ -170,10 +208,10 @@ const APIManagerModal: React.FC<APIManagerModalProps> = ({ onClose }) => {
             </div>
           </div>
 
-          {/* Connection Test Section */}
           <div className="space-y-4">
             <h4 className="text-sm font-bold text-gray-400 uppercase tracking-widest">Connection Test</h4>
             <Button 
+              type="button"
               variant="white" 
               fullWidth 
               className="border-2 border-gray-100 shadow-none hover:bg-gray-50 py-4"
@@ -222,8 +260,15 @@ const APIManagerModal: React.FC<APIManagerModalProps> = ({ onClose }) => {
 
         {/* Modal Footer */}
         <div className="bg-gray-50 px-8 py-6 flex justify-end gap-3 border-t border-gray-100">
-          <Button variant="white" size="sm" className="border shadow-none" onClick={onClose}>취소</Button>
-          <Button size="sm" onClick={() => window.location.reload()}>새로고침하여 적용</Button>
+          <Button type="button" variant="white" size="sm" className="border shadow-none" onClick={onClose}>취소</Button>
+          <Button 
+            type="button"
+            size="sm" 
+            onClick={handleApply}
+            disabled={!hasKey || isApplying}
+          >
+            {isApplying ? '적용 중...' : '적용 완료'}
+          </Button>
         </div>
       </div>
 
