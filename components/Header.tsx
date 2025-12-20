@@ -3,10 +3,12 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { NAV_LINKS } from '../constants';
 import Button from './Button';
+import APIManagerModal from './APIManagerModal';
 
 const Header: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isAPIManagementOpen, setIsAPIManagementOpen] = useState(false);
   const location = useLocation();
 
   useEffect(() => {
@@ -59,8 +61,20 @@ const Header: React.FC = () => {
           ))}
         </nav>
 
-        {/* Desktop CTA */}
-        <div className="hidden md:block">
+        {/* Desktop CTA & API Admin */}
+        <div className="hidden md:flex items-center gap-4">
+          <button 
+            onClick={() => setIsAPIManagementOpen(true)}
+            className={`p-2 rounded-full transition-colors flex items-center gap-2 text-sm font-bold ${
+              isScrolled ? 'text-gray-600 hover:bg-gray-100' : 'text-white/80 hover:bg-white/10'
+            }`}
+            title="API 키 관리"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+            </svg>
+            API 관리
+          </button>
           <a href="https://open.kakao.com/o/s3ByEJJh" target="_blank" rel="noopener noreferrer">
             <Button variant={isScrolled ? 'primary' : 'secondary'} size="sm">
               견적 요청하기
@@ -103,12 +117,26 @@ const Header: React.FC = () => {
               {link.label}
             </Link>
           ))}
+          <button 
+            onClick={() => {
+              setIsMobileMenuOpen(false);
+              setIsAPIManagementOpen(true);
+            }}
+            className="font-semibold pb-4 border-b border-gray-100 text-left flex items-center gap-2"
+          >
+            API 키 관리 센터
+          </button>
         </nav>
         <div className="mt-8 flex flex-col gap-4">
           <Button fullWidth variant="primary" size="lg">카카오톡 상담하기</Button>
           <Button fullWidth variant="outline" size="lg">전화 상담 요청</Button>
         </div>
       </div>
+
+      {/* API Management Modal */}
+      {isAPIManagementOpen && (
+        <APIManagerModal onClose={() => setIsAPIManagementOpen(false)} />
+      )}
     </header>
   );
 };
