@@ -47,7 +47,7 @@ const MainPage: React.FC = () => {
             NO.1 필리핀 클락 전문 여행사
           </span>
           <h1 className="text-4xl md:text-6xl font-black leading-tight mb-6 animate-fade-in-up delay-100 drop-shadow-lg">
-            클락 골프 & 카지노 여행<br />
+            클락 골프 & 프리미엄 휴식 여행<br />
             <span className="text-secondary">클락션투어</span>가 가장 편합니다
           </h1>
           <p className="text-lg md:text-xl text-gray-200 mb-10 max-w-2xl mx-auto animate-fade-in-up delay-200 drop-shadow-md">
